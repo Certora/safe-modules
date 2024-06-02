@@ -1,4 +1,5 @@
 using SafeWebAuthnSignerProxy as SafeWebAuthnSignerProxy;
+using SafeWebAuthnSignerSingleton as SafeWebAuthnSignerSingleton;
 
 // This is the same MAGIC_VALUE constant used in ERC1271.
 definition MAGIC_VALUE() returns bytes4 = to_bytes4(0x1626ba7e);
@@ -17,10 +18,18 @@ possible calldata values so this simualtion will make the prover choose differen
 Rule stuck.
 */
 rule proxyReturnValue {
+    env e;
+    address proxy;
+    uint32 methodsig;
     bytes32 message;
     bytes signature;
 
-    bytes4 ret = authenticate(message, signature);
+    require proxy == SafeWebAuthnSignerProxy;
+    require methodsig == sig:SafeWebAuthnSignerSingleton.isValidSignature(bytes32,bytes).selector;
+
+    bytes4 ret = callFunction(e, proxy, methodsig, message, signature);
 
     assert ret == MAGIC_VALUE();
 }
+
+

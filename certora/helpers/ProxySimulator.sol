@@ -12,6 +12,14 @@ contract ProxySimulator {
         _proxy = proxy;
     }
 
+    function callFunction(address proxy, uint32 methodsig, bytes32 message, bytes calldata signature) external view returns (bytes4) {
+        (bool success, bytes memory data) = proxy.staticcall(abi.encodePacked(methodsig, message, signature));
+        
+        require(success);
+
+        return abi.decode(data, (bytes4));
+    }
+
     function authenticate(bytes32 message, bytes calldata signature) external returns (bytes4) {
         bytes memory data = abi.encodeWithSignature("isValidSignature(bytes32,bytes)", message, signature);
 
