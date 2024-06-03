@@ -1,0 +1,3 @@
+[submodule "modules/passkey/lib/forge-std"]
+	path = modules/passkey/lib/forge-std
+	url = https://github.com/foundry-rs/forge-std

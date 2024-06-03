@@ -6,6 +6,7 @@ import { HttpNetworkUserConfig } from 'hardhat/types'
 import './src/tasks/codesize'
 import './src/tasks/deployContracts'
 import './src/tasks/localVerify'
+import "@nomicfoundation/hardhat-foundry";
 
 dotenv.config()
 const { CUSTOM_NODE_URL, MNEMONIC, ETHERSCAN_API_KEY, PK } = process.env

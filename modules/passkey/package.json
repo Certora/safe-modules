@@ -49,6 +49,7 @@
   "devDependencies": {
     "@account-abstraction/contracts": "^0.7.0",
     "@noble/curves": "^1.4.0",
+    "@nomicfoundation/hardhat-foundry": "^1.1.2",
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
     "@safe-global/mock-contract": "^4.1.0",
     "@safe-global/safe-4337": "^0.3.0",
