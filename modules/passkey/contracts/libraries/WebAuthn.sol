@@ -199,17 +199,25 @@ library WebAuthn {
                 // Encode 6-bit groups into characters by looking them up in the character table.
                 // 0x3f is a mask to get the last 6 bits so that we can index directly to the
                 // base-64 lookup table.
-                mstore8(ptr, mload(and(shr(i, challenge), 0x3f)))
-                mstore8(add(ptr, 1), mload(and(shr(sub(i, 6), challenge), 0x3f)))
-                mstore8(add(ptr, 2), mload(and(shr(sub(i, 12), challenge), 0x3f)))
-                mstore8(add(ptr, 3), mload(and(shr(sub(i, 18), challenge), 0x3f)))
-                mstore8(add(ptr, 4), mload(and(shr(sub(i, 24), challenge), 0x3f)))
-                mstore8(add(ptr, 5), mload(and(shr(sub(i, 30), challenge), 0x3f)))
-                mstore8(add(ptr, 6), mload(and(shr(sub(i, 36), challenge), 0x3f)))
+                mstore8(ptr, add(and(shr(i, challenge), 0x3f), 0x41))
+//                mstore8(ptr, mload(and(shr(i, challenge), 0x3f)))
+                mstore8(add(ptr, 1), add(and(shr(sub(i, 6), challenge), 0x3f), 0x41))
+//                mstore8(add(ptr, 1), mload(and(shr(sub(i, 6), challenge), 0x3f)))
+                mstore8(add(ptr, 2), add(and(shr(sub(i, 12), challenge), 0x3f), 0x41))
+//                mstore8(add(ptr, 2), mload(and(shr(sub(i, 12), challenge), 0x3f)))
+                mstore8(add(ptr, 3), add(and(shr(sub(i, 18), challenge), 0x3f), 0x41))
+//                mstore8(add(ptr, 3), mload(and(shr(sub(i, 18), challenge), 0x3f)))
+                mstore8(add(ptr, 4), add(and(shr(sub(i, 24), challenge), 0x3f), 0x41))
+//                mstore8(add(ptr, 4), mload(and(shr(sub(i, 24), challenge), 0x3f)))
+                mstore8(add(ptr, 5), add(and(shr(sub(i, 30), challenge), 0x3f), 0x41))
+//                mstore8(add(ptr, 5), mload(and(shr(sub(i, 30), challenge), 0x3f)))
+                mstore8(add(ptr, 6), add(and(shr(sub(i, 36), challenge), 0x3f), 0x41))
+//                mstore8(add(ptr, 6), mload(and(shr(sub(i, 36), challenge), 0x3f)))
             }
 
             // Encode the final 4-bit group, where 0x0f is a mask to get the last 4 bits.
-            mstore8(ptr, mload(shl(2, and(challenge, 0x0f))))
+            mstore8(ptr, add(shl(2, and(challenge, 0x0f)), 0x41))
+//            mstore8(ptr, mload(shl(2, and(challenge, 0x0f))))
 
             // Update the free memory pointer to point to the end of the encoded string.
             // Store the length of the encoded string at the beginning of `result`.
@@ -336,7 +344,7 @@ library WebAuthn {
      * @param input The input bytes to hash.
      * @return digest The SHA-256 digest of the input bytes.
      */
-    function _sha256(bytes memory input) private view returns (bytes32 digest) {
+    function _sha256(bytes memory input) public view returns (bytes32 digest) {
         // solhint-disable-next-line no-inline-assembly
         assembly ("memory-safe") {
             // The SHA-256 precompile is at address 0x0002. Note that we don't check the whether or
