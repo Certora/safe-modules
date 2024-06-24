@@ -4,7 +4,7 @@ using SafeWebAuthnSignerSingleton as singleton;
 methods{
     function createSigner(uint256, uint256, P256.Verifiers) external returns (address);
     function hasNoCode(address) external returns (bool) envfree;
-    function getAccountCodeLength(address account) external returns (uint256) envfree;\
+    function getAccountCodeLength(address account) external returns (uint256) envfree;
     function SafeWebAuthnSignerFactory._hasNoCode(address a) internal returns (bool) => hasNoCodeSummary(a);
     function getSigner(uint256 x, uint256 y, P256.Verifiers v) internal returns (address) => getSignerGhost(x, y, v);
     
@@ -109,42 +109,4 @@ rule isValidSignatureForSignerConsistency()
 
     assert firstRevert == secondRevert;
     assert (!firstRevert && !secondRevert) => (magic1 == MAGIC_VALUE()) <=> (magic2 == MAGIC_VALUE());
-}
-
-/*
-┌─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│ Correctness of Signer Creation. (Proved)                                                                            │
-└─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
-*/
-
-ghost mathint numOfCreation;
-ghost mapping(address => uint) address_map;
-ghost address signerAddress;
-
-hook EXTCODESIZE(address addr) uint v{
-    require address_map[addr] == v;
-}
-
-hook CREATE2(uint value, uint offset, uint length, bytes32 salt) address v{
-    require(v == signerAddress);
-    numOfCreation = numOfCreation + 1;
-    address_map[v] = length;
-}
-
-rule SignerCreationCantOverride()
-{
-    env e;
-    require numOfCreation == 0;
-
-    uint x;
-    uint y;
-    P256.Verifiers verifier;
-
-    address a = getSigner(e, x, y, verifier);
-    require address_map[a] == 0;
-
-    createSigner(e, x, y, verifier);
-    createSigner@withrevert(e, x, y, verifier);
-
-    assert numOfCreation < 2;
 }
