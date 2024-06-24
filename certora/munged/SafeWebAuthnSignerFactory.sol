@@ -94,8 +94,7 @@ contract SafeWebAuthnSignerFactory is ISafeSignerFactory {
      * @param account The address of the account to check.
      * @return result True if the account has no code, false otherwise.
      */
-     // funtion is not really virtual, munged!
-    function _hasNoCode(address account) internal view virtual returns (bool result) {
+    function _hasNoCode(address account) internal view returns (bool result) {
         // solhint-disable-next-line no-inline-assembly
         assembly ("memory-safe") {
             result := iszero(extcodesize(account))

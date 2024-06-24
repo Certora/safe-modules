@@ -4,9 +4,11 @@ using WebAuthnHarness as WebAuthnHarness;
 
 
 methods{
-    function getSigner(uint256 x, uint256 y, P256.Verifiers v) internal returns (address) => getSignerGhost(x, y, v);
     function createSigner(uint256, uint256, P256.Verifiers) external returns (address);
     function hasNoCode(address) external returns (bool) envfree;
+    function getAccountCodeLength(address account) external returns (uint256) envfree;
+    function getSigner(uint256 x, uint256 y, P256.Verifiers v) internal returns (address) => getSignerGhost(x, y, v);
+    function SafeWebAuthnSignerFactory._hasNoCode(address a) internal returns (bool) => hasNoCodeSummary(a);
     
     function P256.verifySignatureAllowMalleability(P256.Verifiers a, bytes32 b, uint256 c, uint256 d, uint256 e, uint256 f) internal returns (bool) => 
     verifySignatureAllowMalleabilityGhost(a, b, c, d, e, f);
@@ -21,6 +23,11 @@ methods{
         proxy._,
         singleton._
     ] default NONDET;
+}
+
+function hasNoCodeSummary(address a) returns bool
+{
+    return getAccountCodeLength(a) > 0;
 }
 
 function GETencodeSigningMessageCVL(bytes32 challenge, bytes authenticatorData, string clientDataFields) returns bytes

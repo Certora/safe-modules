@@ -30,10 +30,7 @@ contract SafeWebAuthnSignerFactoryHarness is SafeWebAuthnSignerFactory {
         magicValue = abi.decode(result, (bytes4));
     }
 
-    /**
-        munge to pass the SignerCreationCantOverride rule.
-     */
-    function _hasNoCode(address account) internal view override returns (bool result) {
-        return account.code.length > 0;
+    function getAccountCodeLength(address account) public view returns (uint256) {
+        return account.code.length;
     }
 }
