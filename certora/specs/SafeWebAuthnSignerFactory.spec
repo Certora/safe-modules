@@ -144,9 +144,10 @@ hook CREATE2(uint value, uint offset, uint length, bytes32 salt) address v{
     address_map[v] = length;
 }
 
-rule SignerCreationCantOverride()
+rule SignerCreationCantOverride(method f) filtered {f -> f.contract != proxy}
 {
     env e;
+    calldataarg args;
     require numOfCreation == 0;
 
     uint x;
@@ -157,6 +158,7 @@ rule SignerCreationCantOverride()
     require address_map[a] == 0;
 
     createSigner(e, x, y, verifier);
+    f(e, args);
     createSigner@withrevert(e, x, y, verifier);
 
     assert numOfCreation < 2;
