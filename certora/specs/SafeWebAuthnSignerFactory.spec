@@ -123,3 +123,41 @@ rule getSignerRevertingConditions {
 
     assert lastReverted <=> triedTransferringEth;
 }
+
+/*
+┌─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ Correctness of Signer Creation. (Proved)                                                                            │
+└─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+*/
+
+ghost mathint numOfCreation;
+ghost mapping(address => uint) address_map;
+ghost address signerAddress;
+
+hook EXTCODESIZE(address addr) uint v{
+    require address_map[addr] == v;
+}
+
+hook CREATE2(uint value, uint offset, uint length, bytes32 salt) address v{
+    require(v == signerAddress);
+    numOfCreation = numOfCreation + 1;
+    address_map[v] = length;
+}
+
+rule SignerCreationCantOverride()
+{
+    env e;
+    require numOfCreation == 0;
+
+    uint x;
+    uint y;
+    P256.Verifiers verifier;
+
+    address a = getSigner(e, x, y, verifier);
+    require address_map[a] == 0;
+
+    createSigner(e, x, y, verifier);
+    createSigner@withrevert(e, x, y, verifier);
+
+    assert numOfCreation < 2;
+}
