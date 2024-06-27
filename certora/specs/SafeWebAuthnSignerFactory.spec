@@ -2,9 +2,12 @@ using SafeWebAuthnSignerProxy as proxy;
 using SafeWebAuthnSignerSingleton as singleton;
 
 methods{
-    function getSigner(uint256 x, uint256 y, P256.Verifiers v) internal returns (address) => getSignerGhost(x, y, v);
     function createSigner(uint256, uint256, P256.Verifiers) external returns (address);
     function hasNoCode(address) external returns (bool) envfree;
+    function getAccountCodeLength(address account) external returns (uint256) envfree;
+    function SafeWebAuthnSignerFactory._hasNoCode(address a) internal returns (bool) => hasNoCodeSummary(a);
+    function getSigner(uint256 x, uint256 y, P256.Verifiers v) internal returns (address) => getSignerGhost(x, y, v);
+    
 }
 
 // Summary is correct only if the unique signer rule is proved spec GetSigner
@@ -12,6 +15,11 @@ ghost getSignerGhost(uint256, uint256, P256.Verifiers) returns address {
     axiom forall uint256 x1. forall uint256 y1. forall P256.Verifiers v1.
     forall uint256 x2. forall uint256 y2. forall P256.Verifiers v2.
     (getSignerGhost(x1, y1, v1) == getSignerGhost(x2, y2, v2)) <=> (x1 == x2 && y1 == y2 && v1 == v2); 
+}
+
+function hasNoCodeSummary(address a) returns bool
+{
+    return getAccountCodeLength(a) == 0;
 }
 
 definition MAGIC_VALUE() returns bytes4 = to_bytes4(0x1626ba7e);
@@ -114,4 +122,44 @@ rule getSignerRevertingConditions {
     getSigner@withrevert(e, x, y, verifiers);
 
     assert lastReverted <=> triedTransferringEth;
+}
+
+/*
+┌─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ Correctness of Signer Creation. (Vacuous)                                                                            │
+└─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+*/
+
+ghost mathint numOfCreation;
+ghost mapping(address => uint) address_map;
+ghost address signerAddress;
+
+hook EXTCODESIZE(address addr) uint v{
+    require address_map[addr] == v;
+}
+
+hook CREATE2(uint value, uint offset, uint length, bytes32 salt) address v{
+    require(v == signerAddress);
+    numOfCreation = numOfCreation + 1;
+    address_map[v] = length;
+}
+
+rule SignerCreationCantOverride(method f) filtered {f -> f.contract != proxy}
+{
+    env e;
+    calldataarg args;
+    require numOfCreation == 0;
+
+    uint x;
+    uint y;
+    P256.Verifiers verifier;
+
+    address a = getSigner(e, x, y, verifier);
+    require address_map[a] == 0;
+
+    createSigner(e, x, y, verifier);
+    f(e, args);
+    createSigner@withrevert(e, x, y, verifier);
+
+    assert numOfCreation < 2;
 }
