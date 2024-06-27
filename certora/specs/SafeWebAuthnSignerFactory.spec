@@ -19,7 +19,7 @@ ghost getSignerGhost(uint256, uint256, P256.Verifiers) returns address {
 
 function hasNoCodeSummary(address a) returns bool
 {
-    return getAccountCodeLength(a) > 0;
+    return getAccountCodeLength(a) == 0;
 }
 
 definition MAGIC_VALUE() returns bytes4 = to_bytes4(0x1626ba7e);

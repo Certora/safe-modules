@@ -5,14 +5,13 @@ import {ISafeSignerFactory} from "../../modules/passkey/contracts/interfaces/ISa
 import {SafeWebAuthnSignerProxy} from "../../modules/passkey/contracts/SafeWebAuthnSignerProxy.sol";
 import {SafeWebAuthnSignerSingleton} from "../../modules/passkey/contracts/SafeWebAuthnSignerSingleton.sol";
 import {P256} from "../../modules/passkey/contracts/libraries/P256.sol";
-
 /**
  * @title Safe WebAuthn Signer Factory
  * @dev A factory contract for creating WebAuthn signers. Additionally, the factory supports
  * signature verification without deploying a signer proxies.
  * @custom:security-contact bounty@safe.global
  */
-contract SafeWebAuthnSignerFactory is ISafeSignerFactory {
+contract GetSignerMunged is ISafeSignerFactory {
     /**
      * @notice The {SafeWebAuthnSignerSingleton} implementation to that is used for signature
      * verification by this contract and any proxies it deploys.
@@ -29,14 +28,31 @@ contract SafeWebAuthnSignerFactory is ISafeSignerFactory {
         SINGLETON = new SafeWebAuthnSignerSingleton();
     }
 
-    /**
-     * @inheritdoc ISafeSignerFactory
-     */
-     // funtion is not really virtual, Munged!
-    function getSigner(uint256 x, uint256 y, P256.Verifiers verifiers) public view virtual override returns (address signer) {
+    function getSignerHarnessed(uint256 x, uint256 y, P256.Verifiers verifiers) public view returns (uint256 value) {
         bytes32 codeHash = keccak256(
             abi.encodePacked(
                 type(SafeWebAuthnSignerProxy).creationCode,
+                "01234567891011121314152546",
+                uint256(uint160(address(SINGLETON))),
+                x,
+                y,
+                uint256(P256.Verifiers.unwrap(verifiers))
+            )
+        );
+        value = uint256(keccak256(abi.encodePacked(hex"ff", address(this), bytes32(0), codeHash)));
+    }
+    function castToAddress(uint256 value) public pure returns (address addr){
+        addr = address(uint160(value));
+    }
+
+    /**
+     * munged getSigner
+     */
+    function getSigner(uint256 x, uint256 y, P256.Verifiers verifiers) public view returns (address signer) {
+        bytes32 codeHash = keccak256(
+            abi.encodePacked(
+                type(SafeWebAuthnSignerProxy).creationCode,
+                "01234567891011121314152546", // munged for word alignment workaround (32 bytes)
                 uint256(uint160(address(SINGLETON))),
                 x,
                 y,
