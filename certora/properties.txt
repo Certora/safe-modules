@@ -1,0 +1,19 @@
+modules/passkey/contracts/4337/SafeWebAuthnSharedSigner.sol
+
+-- getConfiguration() will return zeroes if the caller is not Safe account
+-- getConfiguration() will return correct configuration if the caller is Safe account
+
+-- configure() must be called with delegatecall otherwise reverts (verify the modifier)
+-- configure() integrity: sets correctly the applied settings - verify by checking
+   the output of getConfiguration()
+-- configure() can be called multiple times and the last setting is the one that is set
+-- configure() won't revert if called twice with valid input
+
+-- isValidSignature(bytes memory data, bytes calldata signature) behaves similarly to 
+   isValidSignature(bytes32 message, bytes calldata signature) i.e.,
+   both fail or pass at the same time when bytes32 message == keccak256(data)
+
+
+Questions:
+1. Why the SIGNER_SLOT is set to uint256(keccak256(abi.encode(address(this), _SIGNER_MAPPING_SLOT))) ?
+2. Why in function getConfiguration(address account), getStorageAtData is calculated using (SIGNER_SLOT, 3) ?
