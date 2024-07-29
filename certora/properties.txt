@@ -1,12 +1,17 @@
 modules/passkey/contracts/4337/SafeWebAuthnSharedSigner.sol
 
 -- getConfiguration() will return zeroes if the caller is not Safe account
+we need a summary for getStorageAt() using a mock that returns new bytes(3 * 32)
+
 -- getConfiguration() will return correct configuration if the caller is Safe account
+we need the mock (see bottom of doc)
 
 -- configure() must be called with delegatecall otherwise reverts (verify the modifier)
 -- configure() integrity: sets correctly the applied settings - verify by checking
    the output of getConfiguration()
+   Use the mock mentioned (see bottom of doc)
 -- configure() can be called multiple times and the last setting is the one that is set
+   obsolete because of the rule above
 -- configure() won't revert if called twice with valid input
 
 -- isValidSignature(bytes memory data, bytes calldata signature) behaves similarly to 
@@ -17,3 +22,71 @@ modules/passkey/contracts/4337/SafeWebAuthnSharedSigner.sol
 Questions:
 1. Why the SIGNER_SLOT is set to uint256(keccak256(abi.encode(address(this), _SIGNER_MAPPING_SLOT))) ?
 2. Why in function getConfiguration(address account), getStorageAtData is calculated using (SIGNER_SLOT, 3) ?
+
+
+
+Probably the strongest property will be:
+-  once isValidSignature() is called, we want to show that the correct getStorageAt() 
+   of the correct account (msg.sender) is used and then the correct parameters of
+   WebAuthn.verifySignature() are being passed to it (the x,y,Verifiers)
+   (to do that we need hooks on function calls - getStorageAt and verifySignature)
+   (the hook will help us extract the parameters sent to the function)
+   getStorageAt - needs a dispatcher to a mock of a Safe account (extends the storageAccessible)
+   
+   _._ => DISPATCH [SafeMockContract.getStorageAt()] default HAVOC;
+
+   and has a configure function that delegates to the SafeWebAuthnSharedSigner.sol)
+
+   https://github.com/safe-global/safe-smart-account/blob/2556b945ebd7a9e5efd1bf65731f93b1db7e3cc5/contracts/Safe.sol
+   The mock is StorageAccessible, so it needs to have:
+   - import {StorageAccessible} from "./common/StorageAccessible.sol";
+   - create a configure function that uses delegatecall to pass the settings and
+     check that the configure mechanism works correct
+
+
+methodology for checking the hook on function call:
+- use a function summary and inside use a ghost variable to store the parameters
+  passed to the summarized function
+- we need to return a (bool) value from the function summary by calling the ghost function
+- should be consistent - for the same input it returns the same output (by ghost function)
+
+
+WebAuthn.verifySignature() => verifySignatureGhost()   <-- this should also take care of the P256.sol unresolved call
+function WebAuthn.verifySignature(a,b,c,.., x, y, v) internal returns (bool) => verifySignatureSummary(a,b,c,.., x, y, v);
+
+ghost verifySignatureGhost(a,b,c,.., x, y, v) returns (bool);
+ghost xGhost;
+ghost yGhost;
+ghost vGhost;
+
+function verifySignatureSummary(a,b,c,.., x, y, v) returns (bool) {
+   xGhost = x;
+   yGhost = y;
+   vGhost = v;
+
+   return verifySignatureGhost(a,b,c,.., x, y, v);
+}
+
+
+
+rule ....() {
+   
+   require e.msg.sender == MockSafeContract;
+
+   (x,y,v) = getConfiguration(MockSafeContract);
+
+   assert xGhost == x;
+   assert yGhost == y;
+   assert vGhost == v;
+}
+
+
+SafeMockContract.delegatecallIsValidSignatureMessage <-- create the mock and call from within
+-> SafeWebAuthnSharedSigner.isValidSignature(bytes32 message, bytes calldata signature)
+-> SafeWebAuthnSharedSigner._verifySignature(bytes32 message, bytes calldata signature)
+-> SafeWebAuthnSharedSigner.getConfiguration(msg.sender)
+-> ISafe(msg.sender).getStorageAt ->
+-> WebAuthn.verifySignature(...) <-- here we can hook on the values passed to it (xGhost, yGhost, vGhost)
+
+SafeWebAuthnSharedSigner.getConfiguration(SafeMockContract)
+should return the same configuration as the one used by the WebAuthn.verifySignature

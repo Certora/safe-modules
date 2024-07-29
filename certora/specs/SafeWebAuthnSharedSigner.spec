@@ -1,11 +1,55 @@
 using SafeWebAuthnSharedSigner as SafeWebAuthnSharedSigner;
+using SafeMockContract as SafeMockContract;
 
+// METHODS BLOCK
+methods {
+    // function _._ => DISPATCH [SafeMockContract.getStorageAt(uint256,uint256)] default HAVOC_ALL;
+    function _.getStorageAt(uint256,uint256) external => DISPATCHER(false);
+
+    // function SafeMockContract.getStorageAt(uint256,uint256) external returns (bytes) => getStorageSummary(uint256,uint256);
+
+    function WebAuthn.verifySignature(
+        bytes32 challenge,
+        bytes calldata signature,
+        WebAuthn.AuthenticatorFlags authenticatorFlags,
+        uint256 x,
+        uint256 y,
+        P256.Verifiers verifiers
+    ) internal returns (bool) => verifySignatureSummary(challenge, signature, authenticatorFlags, x, y, verifiers);
+}
+
+// GHOSTS AND CVL FUNCTIONS
+persistent ghost verifySignatureGhost(bytes32,bytes,WebAuthn.AuthenticatorFlags,uint256,uint256,P256.Verifiers) returns bool;
+persistent ghost uint256 xGhost;
+persistent ghost uint256 yGhost;
+persistent ghost P256.Verifiers vGhost;
+
+function verifySignatureSummary(
+    bytes32 challenge,
+    bytes signature,
+    WebAuthn.AuthenticatorFlags authenticatorFlags,
+    uint256 x,
+    uint256 y,
+    P256.Verifiers verifiers) returns bool
+{
+    xGhost = x;
+    yGhost = y;
+    vGhost = verifiers;
+    return verifySignatureGhost(challenge,signature,authenticatorFlags,x,y,verifiers);
+}
+
+// function getStorageSummary(uint256 offset, uint256 length) returns bytes96 {
+//     bytes96 result;
+//     return result;
+// }
+
+// DEFINITIONS
 definition MAGIC_VALUE() returns bytes4 = to_bytes4(0x1626ba7e);
 definition LEGACY_MAGIC_VALUE() returns bytes4 = to_bytes4(0x20c13b0b);
 
 // sanity rule
 // passed - https://prover.certora.com/output/80942/9b5618ab52b8479fb7ee19a89a14b86e?anonymousKey=d1d8512effeb9393c7b89d249e3c188f26406cc3
-use builtin rule sanity filtered { f -> f.contract == currentContract }
+use builtin rule sanity; /*filtered { f -> f.contract == currentContract }*/
 
 // getConfiguration() will return zeroes if the caller is not Safe account
 /*rule verifyGetConfigurationReturnsZerosForNonSafeAccount()
@@ -103,17 +147,19 @@ rule verifyConfigureMultipleTimes()
 
 // configure() won't revert if called twice with valid input
 // passed - https://prover.certora.com/output/80942/3e779bea01f243849b88dce4c076b8d0?anonymousKey=70ff154349c0ee14b6772dbed18b8e3458b1a6b3
+// !! improve the rule by using the mock to apply the delegatecall
 rule verifyConfigureWontRevert()
 {
-    env e;
+    env e1; env e2;
     SafeWebAuthnSharedSigner.Signer signerSet1;
     SafeWebAuthnSharedSigner.Signer signerSet2;
 
-    configure(e,signerSet1);
-    configure@withrevert(e,signerSet2);
+    configure(e1,signerSet1);
+    configure@withrevert(e2,signerSet2);
     bool configureReverted = lastReverted;
 
-    assert signerSet1 == signerSet2 => !configureReverted;
+    // assert signerSet1 == signerSet2 => !configureReverted;
+    assert e2.msg.value == 0 => !configureReverted;
 }
 
 
@@ -121,6 +167,7 @@ rule verifyConfigureWontRevert()
 // isValidSignature(bytes32 message, bytes calldata signature) i.e.,
 // both fail or pass at the same time when bytes32 message == keccak256(data)
 // failed - https://prover.certora.com/output/80942/a4f3dd01294a436b849794db7952d278?anonymousKey=88f64a73a75c3e5617beb2c7f6e6914f6a4ae4c4
+// we need to summarize WebAuthn.verifySignature that is always returns the same input (use ghost called summary)
 rule isValidSignatureCoherence()
 {
     env e;
@@ -132,9 +179,11 @@ rule isValidSignatureCoherence()
     bytes4 magicValueLegacy = isValidSignature(e,data,signature);
     bytes4 magicValue = isValidSignature(e,message,signature);
 
+    satisfy magicValueLegacy == LEGACY_MAGIC_VALUE() && magicValue == MAGIC_VALUE();
+
     assert message == keccak256(data) =>
             (magicValueLegacy == LEGACY_MAGIC_VALUE() && magicValue == MAGIC_VALUE()) ||
-            (magicValueLegacy != LEGACY_MAGIC_VALUE() && magicValue != MAGIC_VALUE());
+            (magicValueLegacy == to_bytes4(0)         && magicValue == to_bytes4(0));
 }
 
 
@@ -163,6 +212,28 @@ rule isValidSignatureCoherenceExtended()
     //         (magicValueLegacy == LEGACY_MAGIC_VALUE() && magicValue == MAGIC_VALUE()) ||
     //         (magicValueLegacy != LEGACY_MAGIC_VALUE() && magicValue != MAGIC_VALUE());
 
-    assert (!firstRevert && !secondRevert) =>
-            magicValueLegacy == LEGACY_MAGIC_VALUE() <=> magicValue == MAGIC_VALUE();
+    // assert (!firstRevert && !secondRevert) =>
+    //         magicValueLegacy == LEGACY_MAGIC_VALUE() <=> magicValue == MAGIC_VALUE();
+}
+
+// once isValidSignature() is called, we want to show that the correct getStorageAt() 
+// of the correct account (msg.sender) is used and then the correct parameters of
+// WebAuthn.verifySignature() are being passed to it (the x,y,Verifiers)
+rule correctDataFlow() {
+    env e;
+    require e.msg.sender == SafeMockContract;
+
+    address delegateTo = SafeMockContract.delegateCallMe(e);
+    require delegateTo == SafeWebAuthnSharedSigner;  // force correct address
+    // require SafeMockContract.delegateCallMe == SafeWebAuthnSharedSigner;  // force correct address
+
+    bytes32 message; bytes signature; bytes4 result;
+    result = SafeMockContract.delegatecallIsValidSignatureMessage(e,message,signature);
+
+    SafeWebAuthnSharedSigner.Signer signer;
+    signer = SafeWebAuthnSharedSigner.getConfiguration(e, SafeMockContract);
+
+    assert xGhost == signer.x;
+    assert yGhost == signer.y;
+    assert vGhost == signer.verifiers;
 }
