@@ -2,9 +2,14 @@ modules/passkey/contracts/4337/SafeWebAuthnSharedSigner.sol
 
 -- getConfiguration() will return zeroes if the caller is not Safe account
 we need a summary for getStorageAt() using a mock that returns new bytes(3 * 32)
+// NOTE: AN OBSOLETE RULE
+// this rule can fail, because one can create a mock that emulates Safe account but is not a Safe account
+// yet, since the mock contract can only change its own state there is no security risk here
 
 -- getConfiguration() will return correct configuration if the caller is Safe account
 we need the mock (see bottom of doc)
+and first we need to configure the mock correctly using configure(SafeMockContract)
+// this rule is effectively checked by the configure() integrity rule below
 
 -- configure() must be called with delegatecall otherwise reverts (verify the modifier)
 -- configure() integrity: sets correctly the applied settings - verify by checking

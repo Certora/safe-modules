@@ -12,7 +12,11 @@ contract SafeMockContract is ISafe {
         P256.Verifiers verifiers;
     }
 
-    address public delegateCallMe;
+    address public immutable delegateCallMe;
+
+    constructor(address delegateCallWho) {
+        delegateCallMe = delegateCallWho;
+    }
 
     function setup(
         address[] calldata owners,
@@ -33,25 +37,25 @@ contract SafeMockContract is ISafe {
      * @return the bytes that were read.
      */
     function getStorageAt(uint256 offset, uint256 length) public view returns (bytes memory) {
-        bytes memory result = new bytes(3 * 32);
-        return result;
-        
-        // bytes memory result = new bytes(length * 32);
-        // for (uint256 index = 0; index < length; index++) {
-        //     /* solhint-disable no-inline-assembly */
-        //     /// @solidity memory-safe-assembly
-        //     assembly {
-        //         let word := sload(add(offset, index))
-        //         mstore(add(add(result, 0x20), mul(index, 0x20)), word)
-        //     }
-        //     /* solhint-enable no-inline-assembly */
-        // }
+        // bytes memory result = new bytes(3 * 32);
         // return result;
+        
+        bytes memory result = new bytes(length * 32);
+        for (uint256 index = 0; index < length; index++) {
+            /* solhint-disable no-inline-assembly */
+            /// @solidity memory-safe-assembly
+            assembly {
+                let word := sload(add(offset, index))
+                mstore(add(add(result, 0x20), mul(index, 0x20)), word)
+            }
+            /* solhint-enable no-inline-assembly */
+        }
+        return result;
     }
 
     function delegatecallIsValidSignatureData(bytes memory data, bytes calldata signature)
         public
-        returns (bytes4 magicValue) {
+        returns (bytes4) {
         
         (bool success, bytes memory result) = delegateCallMe.delegatecall(
             abi.encodeWithSignature("isValidSignature(bytes,bytes)", data, signature)
@@ -61,7 +65,7 @@ contract SafeMockContract is ISafe {
     }
 
     function delegatecallIsValidSignatureMessage(bytes32 message, bytes calldata signature)
-        public returns (bytes4 magicValue) {
+        public returns (bytes4) {
         
         (bool success, bytes memory result) = delegateCallMe.delegatecall(
             abi.encodeWithSignature("isValidSignature(bytes32,bytes)", message, signature)
@@ -73,9 +77,13 @@ contract SafeMockContract is ISafe {
     function delegatecallConfigure(Signer memory signer) public {
 
         (bool success, bytes memory result) = delegateCallMe.delegatecall(
-            abi.encodeWithSignature("configure(uint256,uint256,uint176)", signer.x, signer.y, signer.verifiers)
+            abi.encodeWithSignature("configure((uint256,uint256,uint176))", signer.x, signer.y, signer.verifiers)
         );
         require(success, "delegatecallConfigure failed");
     }
+
+    // function setContractAddress(address _address) public {
+    //     delegateCallMe = _address;
+    // }
 
 }
