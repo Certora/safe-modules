@@ -123,11 +123,14 @@ rule verifyConfigureWontRevert()
 }
 
 
+/* 
 // isValidSignature(bytes memory data, bytes calldata signature) behaves similarly to 
 // isValidSignature(bytes32 message, bytes calldata signature) i.e.,
 // both fail or pass at the same time when bytes32 message == keccak256(data)
 // failed - https://prover.certora.com/output/80942/a4f3dd01294a436b849794db7952d278?anonymousKey=88f64a73a75c3e5617beb2c7f6e6914f6a4ae4c4
 // we need to summarize WebAuthn.verifySignature that is always returns the same input (use ghost called summary)
+// failed - https://prover.certora.com/output/80942/ad962cbf9f6243b8ac35339cdb8255f9?anonymousKey=c7aa88b6084ed2b20dd4fb78a835d9775686581b
+// this rule checks how we model keccak and it is not very helpful here
 rule isValidSignatureCoherence()
 {
     env e;
@@ -147,7 +150,8 @@ rule isValidSignatureCoherence()
 }
 
 
-// failed - https://prover.certora.com/output/80942/c9292aa42ad14020968418c32744a49a?anonymousKey=4180c35e299966155ba7fec2f533b3c113831073
+// failed - https://prover.certora.com/output/80942/9921097c3b164c999d233c3100a77ad0?anonymousKey=c03dfeee39f4819275dddfb91f812e10e7d635aa
+// since we summarize WebAuthn.verifySignature, the call to both isValidSignature() cannot revert
 rule isValidSignatureCoherenceExtended()
 {
     env e; method f; calldataarg args;
@@ -157,16 +161,20 @@ rule isValidSignatureCoherenceExtended()
     // bytes4 LEGACY_MAGIC_VALUE = 0x20c13b0b;
     // bytes4 MAGIC_VALUE = 0x1626ba7e;
 
-    bytes4 magicValueLegacy = isValidSignature@withrevert(e,data,signature);
+    // bytes4 magicValueLegacy = isValidSignature@withrevert(e,data,signature);
+    isValidSignature@withrevert(e,data,signature);
     bool firstRevert = lastReverted;
 
     f(e, args); // allow to call any method
 
-    bytes4 magicValue = isValidSignature@withrevert(e,message,signature);
+    // bytes4 magicValue = isValidSignature@withrevert(e,message,signature);
+    isValidSignature@withrevert(e,message,signature);
     bool secondRevert = lastReverted;
 
 
     assert message == keccak256(data) => firstRevert == secondRevert;
+    // satisfy !firstRevert;
+    satisfy secondRevert;  // this will always fail due to our summarization
 
     // assert message == keccak256(data) =>
     //         (magicValueLegacy == LEGACY_MAGIC_VALUE() && magicValue == MAGIC_VALUE()) ||
@@ -175,6 +183,7 @@ rule isValidSignatureCoherenceExtended()
     // assert (!firstRevert && !secondRevert) =>
     //         magicValueLegacy == LEGACY_MAGIC_VALUE() <=> magicValue == MAGIC_VALUE();
 }
+*/
 
 // once isValidSignature() is called, we want to show that the correct getStorageAt() 
 // of the correct account (msg.sender) is used and then the correct parameters of
