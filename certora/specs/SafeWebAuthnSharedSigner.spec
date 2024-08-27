@@ -5,7 +5,7 @@ using SafeMockContract as SafeMockContract;
 methods {
     function _.getStorageAt(uint256,uint256) external => DISPATCHER(false);
     function _._ external => DISPATCH [
-        SafeWebAuthnSharedSigner.isValidSignature(bytes32,bytes)
+        _.isValidSignature(bytes32,bytes)
     ] default HAVOC_ALL;
 
     function WebAuthn.verifySignature(
@@ -200,7 +200,10 @@ rule correctDataFlow() {
 
     bytes32 message; bytes signature; // bytes4 result;
     // result = SafeMockContract.delegatecallIsValidSignatureMessage(e,message,signature);
-    SafeMockContract.delegatecallIsValidSignatureMessage(e,message,signature);
+    // SafeMockContract.delegatecallIsValidSignatureMessage(e,message,signature); // wrong usage
+    
+    // require e.msg.sender == SafeMockContract; // already required above
+    SafeWebAuthnSharedSigner.isValidSignature(e,message,signature);
 
     SafeWebAuthnSharedSigner.Signer signer;
     signer = SafeWebAuthnSharedSigner.getConfiguration(e, SafeMockContract);
